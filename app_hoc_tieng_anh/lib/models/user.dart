@@ -19,4 +19,21 @@ class User {
       'password': password,
     };
   }
+
+  Map<String, dynamic> toInsertMap() {
+    return {
+      'name': name,
+      'email': email,
+      'password': password,
+    };
+  }
+
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User(
+      id: map['id'] as int?,
+      name: map['name'] as String,
+      email: map['email'] as String,
+      password: map['password'] as String,
+    );
+  }
 }

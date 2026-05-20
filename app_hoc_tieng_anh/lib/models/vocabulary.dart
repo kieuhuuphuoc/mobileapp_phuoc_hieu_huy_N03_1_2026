@@ -1,15 +1,17 @@
 class Vocabulary {
-  final int id;
-  final String word;
-  final String meaning;
-  final String pronunciation;
-  final String examp;
-
-  Vocabulary({
+  const Vocabulary({
     required this.id,
+    required this.topicId,
     required this.word,
     required this.meaning,
     required this.pronunciation,
-    required this.examp,
+    required this.example,
   });
+
+  final int id;
+  final int topicId;
+  final String word;
+  final String meaning;
+  final String pronunciation;
+  final String example;
 }

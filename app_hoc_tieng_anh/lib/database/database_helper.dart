@@ -1,5 +1,5 @@
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -12,50 +12,72 @@ class DatabaseHelper {
     _database = await _initDB('app.db');
     return _database!;
   }
-  
+
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onOpen: _ensureTables,
+      onUpgrade: (db, oldVersion, newVersion) => _ensureTables(db),
+    );
   }
-  Future _createDB(Database db, int version) async {
+
+  Future<void> _createDB(Database db, int version) async {
+    await _ensureTables(db);
+  }
+
+  Future<void> _ensureTables(Database db) async {
     await db.execute('''
-      CREATE TABLE users (
+      CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        email TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL
       )
     ''');
   }
 
-  
   Future<int> insertUser(Map<String, dynamic> user) async {
-  final db = await instance.database;
+    final db = await instance.database;
 
-  return await db.insert(
-    'users',
-    user,
-    conflictAlgorithm: ConflictAlgorithm.replace,
-  );
-}
-
-Future<Map<String, dynamic>?> loginUser(
-  String email,
-  String password,
-) async {
-  final db = await instance.database;
-
-  final result = await db.query(
-    'users',
-    where: 'email = ? AND password = ?',
-    whereArgs: [email, password],
-  );
-
-  if (result.isNotEmpty) {
-    return result.first;
-  } else {
-    return null;
+    return db.insert(
+      'users',
+      user,
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
   }
-}
+
+  Future<Map<String, dynamic>?> findUserByEmail(String email) async {
+    final db = await instance.database;
+
+    final result = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+      limit: 1,
+    );
+
+    if (result.isEmpty) return null;
+    return result.first;
+  }
+
+  Future<Map<String, dynamic>?> loginUser(
+    String email,
+    String password,
+  ) async {
+    final db = await instance.database;
+
+    final result = await db.query(
+      'users',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+      limit: 1,
+    );
+
+    if (result.isEmpty) return null;
+    return result.first;
+  }
 }
