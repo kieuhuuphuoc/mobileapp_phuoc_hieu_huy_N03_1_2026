@@ -6,7 +6,7 @@ import '../models/vocabulary.dart';
 import '../utils/constants.dart';
 
 class DataService {
-  static const List<Topic> topics = [
+  static final List<Topic> _topics = [
     Topic(
       id: 1,
       name: 'Gia đình',
@@ -30,113 +30,172 @@ class DataService {
     ),
   ];
 
-  static const List<Vocabulary> vocabularies = [
-    Vocabulary(
+  static List<Topic> get topics => List.unmodifiable(_topics);
+
+  static final List<Vocabulary> _vocabularies = [
+    const Vocabulary(
       id: 1,
       topicId: 1,
       word: 'Father',
       meaning: 'Bố',
-      pronunciation: '/ˈfɑːðər/',
+      pronunciation: '/father/',
       example: 'My father is a teacher.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 2,
       topicId: 1,
       word: 'Mother',
       meaning: 'Mẹ',
-      pronunciation: '/ˈmʌðər/',
+      pronunciation: '/mother/',
       example: 'My mother cooks dinner.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 3,
       topicId: 1,
       word: 'Brother',
       meaning: 'Anh/em trai',
-      pronunciation: '/ˈbrʌðər/',
+      pronunciation: '/brother/',
       example: 'My brother likes football.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 4,
       topicId: 1,
       word: 'Sister',
       meaning: 'Chị/em gái',
-      pronunciation: '/ˈsɪstər/',
+      pronunciation: '/sister/',
       example: 'My sister is kind.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 5,
       topicId: 2,
       word: 'Teacher',
       meaning: 'Giáo viên',
-      pronunciation: '/ˈtiːtʃər/',
+      pronunciation: '/teacher/',
       example: 'The teacher explains the lesson.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 6,
       topicId: 2,
       word: 'Student',
       meaning: 'Học sinh',
-      pronunciation: '/ˈstuːdənt/',
+      pronunciation: '/student/',
       example: 'The student reads a book.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 7,
       topicId: 2,
       word: 'Book',
       meaning: 'Quyển sách',
-      pronunciation: '/bʊk/',
+      pronunciation: '/book/',
       example: 'This book is interesting.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 8,
       topicId: 2,
       word: 'Classroom',
       meaning: 'Lớp học',
-      pronunciation: '/ˈklæsruːm/',
+      pronunciation: '/classroom/',
       example: 'The classroom is clean.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 9,
       topicId: 3,
       word: 'Rice',
       meaning: 'Cơm/gạo',
-      pronunciation: '/raɪs/',
+      pronunciation: '/rice/',
       example: 'I eat rice every day.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 10,
       topicId: 3,
       word: 'Bread',
       meaning: 'Bánh mì',
-      pronunciation: '/bred/',
+      pronunciation: '/bread/',
       example: 'She buys bread for breakfast.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 11,
       topicId: 3,
       word: 'Milk',
       meaning: 'Sữa',
-      pronunciation: '/mɪlk/',
+      pronunciation: '/milk/',
       example: 'He drinks milk in the morning.',
     ),
-    Vocabulary(
+    const Vocabulary(
       id: 12,
       topicId: 3,
       word: 'Water',
       meaning: 'Nước',
-      pronunciation: '/ˈwɔːtər/',
+      pronunciation: '/water/',
       example: 'Please drink more water.',
     ),
   ];
 
+  static List<Vocabulary> get vocabularies => List.unmodifiable(_vocabularies);
+
+  static Topic addTopic({
+    required String name,
+    required String description,
+    IconData icon = Icons.topic_outlined,
+    Color color = AppColors.primary,
+  }) {
+    final nextId = _topics.isEmpty
+        ? 1
+        : _topics.map((item) => item.id).reduce((a, b) => a > b ? a : b) + 1;
+
+    final topic = Topic(
+      id: nextId,
+      name: name.trim(),
+      description: description.trim(),
+      icon: icon,
+      color: color,
+    );
+    _topics.add(topic);
+    return topic;
+  }
+
   static List<Vocabulary> getVocabulariesByTopic(int topicId) {
-    return vocabularies.where((word) => word.topicId == topicId).toList();
+    return _vocabularies.where((word) => word.topicId == topicId).toList();
+  }
+
+  static Vocabulary addVocabulary({
+    required int topicId,
+    required String word,
+    required String meaning,
+    required String pronunciation,
+    required String example,
+  }) {
+    final nextId = _vocabularies.isEmpty
+        ? 1
+        : _vocabularies.map((item) => item.id).reduce((a, b) => a > b ? a : b) +
+            1;
+
+    final vocabulary = Vocabulary(
+      id: nextId,
+      topicId: topicId,
+      word: word.trim(),
+      meaning: meaning.trim(),
+      pronunciation: pronunciation.trim(),
+      example: example.trim(),
+    );
+    _vocabularies.add(vocabulary);
+    return vocabulary;
+  }
+
+  static void updateVocabulary(Vocabulary vocabulary) {
+    final index = _vocabularies.indexWhere((item) => item.id == vocabulary.id);
+    if (index == -1) return;
+    _vocabularies[index] = vocabulary;
+  }
+
+  static void deleteVocabulary(int id) {
+    _vocabularies.removeWhere((item) => item.id == id);
   }
 
   static List<Question> getQuestionsByTopic(int topicId) {
     final words = getVocabulariesByTopic(topicId);
     return words.map((word) {
-      final wrongOptions = vocabularies
+      final wrongOptions = _vocabularies
           .where((item) => item.id != word.id)
           .take(3)
           .map((item) => item.meaning)

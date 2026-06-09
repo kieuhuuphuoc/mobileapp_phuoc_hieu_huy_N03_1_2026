@@ -6,15 +6,129 @@ import '../utils/constants.dart';
 import 'auth/login_screen.dart';
 import 'lesson_screen.dart';
 import 'quiz_screen.dart';
+import 'topic_select_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.userName});
 
   final String userName;
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Future<void> _showAddTopicDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Thêm chủ đề'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên chủ đề',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Vui lòng nhập tên chủ đề';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Mô tả',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Vui lòng nhập mô tả';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (!formKey.currentState!.validate()) return;
+
+                  DataService.addTopic(
+                    name: nameController.text,
+                    description: descriptionController.text,
+                  );
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+                child: const Text('Thêm'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      nameController.dispose();
+      descriptionController.dispose();
+    }
+  }
+
+  void _openTopicSelector(TopicSelectMode mode) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TopicSelectScreen(
+          mode: mode,
+          onTopicSelected: (topic) {
+            Navigator.pop(context);
+            if (mode == TopicSelectMode.lesson) {
+              _openLesson(topic);
+            } else {
+              _openQuiz(topic);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  void _openLesson(Topic topic) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => LessonScreen(topic: topic)),
+    ).then((_) => setState(() {}));
+  }
+
+  void _openQuiz(Topic topic) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => QuizScreen(topic: topic)),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final firstTopic = DataService.topics.first;
+    final topics = DataService.topics;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -33,12 +147,19 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Thêm chủ đề'),
+        onPressed: _showAddTopicDialog,
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             Text(
-              'Xin chào, $userName',
+              'Xin chào, ${widget.userName}',
               style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -47,7 +168,7 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Chọn một chủ đề để bắt đầu học từ vựng hôm nay.',
+              'Chọn chủ đề để học từ vựng hoặc làm quiz.',
               style: TextStyle(fontSize: 16, color: AppColors.subtitleColor),
             ),
             const SizedBox(height: 24),
@@ -56,56 +177,54 @@ class HomeScreen extends StatelessWidget {
                 Expanded(
                   child: _ActionButton(
                     icon: Icons.menu_book_outlined,
-                    label: 'Bài học',
+                    label: 'Chọn bài học',
                     color: AppColors.primary,
-                    onTap: () => _openLesson(context, firstTopic),
+                    onTap: () => _openTopicSelector(TopicSelectMode.lesson),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _ActionButton(
                     icon: Icons.quiz_outlined,
-                    label: 'Luyện quiz',
+                    label: 'Chọn quiz',
                     color: AppColors.accent,
-                    onTap: () => _openQuiz(context, firstTopic),
+                    onTap: () => _openTopicSelector(TopicSelectMode.quiz),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Chủ đề',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textColor,
-              ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Chủ đề',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textColor,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _showAddTopicDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Thêm'),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            ...DataService.topics.map(
+            ...topics.map(
               (topic) => _TopicCard(
                 topic: topic,
-                onTap: () => _openLesson(context, topic),
-                onQuizTap: () => _openQuiz(context, topic),
+                onTap: () => _openLesson(topic),
+                onQuizTap: () => _openQuiz(topic),
               ),
             ),
+            const SizedBox(height: 76),
           ],
         ),
       ),
-    );
-  }
-
-  void _openLesson(BuildContext context, Topic topic) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => LessonScreen(topic: topic)),
-    );
-  }
-
-  void _openQuiz(BuildContext context, Topic topic) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => QuizScreen(topic: topic)),
     );
   }
 }
@@ -166,6 +285,8 @@ class _TopicCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wordCount = DataService.getVocabulariesByTopic(topic.id).length;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -204,7 +325,7 @@ class _TopicCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      topic.description,
+                      '$wordCount từ - ${topic.description}',
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.subtitleColor,
