@@ -75,7 +75,7 @@ class _SelectableTopicCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: AppColors.border),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),

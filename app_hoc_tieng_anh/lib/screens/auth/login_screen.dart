@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-
 import '../../services/auth_service.dart';
 import '../../utils/constants.dart';
+import '../../models/user.dart';
 import '../home_screen.dart';
-import 'register_screen.dart';
+import 'register_screen.dart';  // <-- Thêm dòng này
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => HomeScreen(userName: user.name)),
+        MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
       );
     } on AuthException catch (error) {
       if (!mounted) return;

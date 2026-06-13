@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/question.dart';
 import '../models/topic.dart';
 import '../services/data_service.dart';
+import '../services/study_service.dart';
 import '../utils/constants.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -15,11 +16,13 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
+  final _studyService = StudyService();
   late final List<Question> _questions;
   int _currentIndex = 0;
   int _score = 0;
   int? _selectedIndex;
   bool _isFinished = false;
+  bool _savedResult = false;
 
   @override
   void initState() {
@@ -38,9 +41,20 @@ class _QuizScreenState extends State<QuizScreen> {
     });
   }
 
+  Future<void> _finishQuiz() async {
+    if (!_savedResult) {
+      await _studyService.addQuizResult(
+        score: _score,
+        total: _questions.length,
+      );
+      _savedResult = true;
+    }
+    if (mounted) setState(() => _isFinished = true);
+  }
+
   void _nextQuestion() {
     if (_currentIndex == _questions.length - 1) {
-      setState(() => _isFinished = true);
+      _finishQuiz();
       return;
     }
 
@@ -56,6 +70,7 @@ class _QuizScreenState extends State<QuizScreen> {
       _score = 0;
       _selectedIndex = null;
       _isFinished = false;
+      _savedResult = false;
     });
   }
 
@@ -70,10 +85,39 @@ class _QuizScreenState extends State<QuizScreen> {
       ),
       body: SafeArea(
         child: _questions.isEmpty
-            ? const Center(child: Text('Chưa có câu hỏi cho chủ đề này'))
+            ? _buildEmptyState()
             : _isFinished
                 ? _buildResult()
                 : _buildQuestion(),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.quiz_outlined, size: 72, color: widget.topic.color),
+            const SizedBox(height: 16),
+            const Text(
+              'Chưa có câu hỏi',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Hãy thêm từ vựng vào chủ đề này trước khi làm quiz.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.subtitleColor),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -105,7 +149,7 @@ class _QuizScreenState extends State<QuizScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.black12),
+            border: Border.all(color: AppColors.border),
           ),
           child: Text(
             question.questionText,
@@ -153,6 +197,8 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _buildResult() {
+    final percent = ((_score / _questions.length) * 100).round();
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -177,7 +223,7 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Bạn đúng $_score/${_questions.length} câu',
+              'Bạn đúng $_score/${_questions.length} câu - $percent%',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 18,
@@ -236,17 +282,17 @@ class _AnswerButton extends StatelessWidget {
     final isSelected = selectedIndex == index;
     final isCorrect = correctIndex == index;
 
-    Color borderColor = Colors.black12;
+    Color borderColor = AppColors.border;
     Color backgroundColor = Colors.white;
     IconData? trailingIcon;
 
     if (isAnswered && isCorrect) {
-      borderColor = Colors.green;
-      backgroundColor = Colors.green.withAlpha(26);
+      borderColor = AppColors.success;
+      backgroundColor = AppColors.success.withAlpha(26);
       trailingIcon = Icons.check_circle;
     } else if (isAnswered && isSelected) {
-      borderColor = Colors.red;
-      backgroundColor = Colors.red.withAlpha(26);
+      borderColor = AppColors.danger;
+      backgroundColor = AppColors.danger.withAlpha(26);
       trailingIcon = Icons.cancel;
     }
 
@@ -295,7 +341,7 @@ class _AnswerButton extends StatelessWidget {
                 if (trailingIcon != null)
                   Icon(
                     trailingIcon,
-                    color: isCorrect ? Colors.green : Colors.red,
+                    color: isCorrect ? AppColors.success : AppColors.danger,
                   ),
               ],
             ),

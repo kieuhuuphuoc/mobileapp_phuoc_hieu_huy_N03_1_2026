@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-
 import '../models/topic.dart';
 import '../models/vocabulary.dart';
 import '../services/data_service.dart';
+import '../services/study_service.dart';
 import '../utils/constants.dart';
 import '../widgets/word_card.dart';
 import 'quiz_screen.dart';
@@ -17,6 +17,14 @@ class LessonScreen extends StatefulWidget {
 }
 
 class _LessonScreenState extends State<LessonScreen> {
+  final _studyService = StudyService();
+
+  @override
+  void initState() {
+    super.initState();
+    _studyService.addLessonStudy();
+  }
+
   void _listenWord(Vocabulary vocabulary) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Phát âm: ${vocabulary.word}')),
@@ -27,17 +35,14 @@ class _LessonScreenState extends State<LessonScreen> {
     final isEditing = vocabulary != null;
     final formKey = GlobalKey<FormState>();
     final wordController = TextEditingController(text: vocabulary?.word ?? '');
-    final meaningController =
-        TextEditingController(text: vocabulary?.meaning ?? '');
-    final pronunciationController =
-        TextEditingController(text: vocabulary?.pronunciation ?? '');
-    final exampleController =
-        TextEditingController(text: vocabulary?.example ?? '');
+    final meaningController = TextEditingController(text: vocabulary?.meaning ?? '');
+    final pronunciationController = TextEditingController(text: vocabulary?.pronunciation ?? '');
+    final exampleController = TextEditingController(text: vocabulary?.example ?? '');
 
     try {
       await showDialog<void>(
         context: context,
-        builder: (context) {
+        builder: (dialogContext) {
           return AlertDialog(
             title: Text(isEditing ? 'Sửa từ vựng' : 'Thêm từ vựng'),
             content: SingleChildScrollView(
@@ -73,7 +78,7 @@ class _LessonScreenState extends State<LessonScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Hủy'),
               ),
               ElevatedButton(
@@ -104,7 +109,7 @@ class _LessonScreenState extends State<LessonScreen> {
                     );
                   }
 
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                   setState(() {});
                 },
                 child: Text(isEditing ? 'Lưu' : 'Thêm'),
@@ -153,21 +158,21 @@ class _LessonScreenState extends State<LessonScreen> {
   Future<void> _confirmDelete(Vocabulary vocabulary) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Xóa từ vựng'),
           content: Text('Bạn có chắc muốn xóa "${vocabulary.word}" không?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: AppColors.danger,
                 foregroundColor: Colors.white,
               ),
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Xóa'),
             ),
           ],
@@ -178,6 +183,88 @@ class _LessonScreenState extends State<LessonScreen> {
     if (shouldDelete != true) return;
     DataService.deleteVocabulary(vocabulary.id);
     setState(() {});
+  }
+
+  // === Tính năng Ghi chú ===
+  Future<void> _showNoteDialog(Vocabulary vocabulary) async {
+    final controller = TextEditingController(text: vocabulary.note);
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Ghi chú cho "${vocabulary.word}"'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Nhập ghi chú...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final updatedWord = vocabulary.copyWith(note: controller.text);
+              DataService.updateVocabulary(updatedWord);
+              Navigator.pop(context);
+              setState(() {});
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // === Tính năng Chọn Level ===
+  Future<void> _showLevelDialog(Vocabulary vocabulary) async {
+    final result = await showDialog<WordLevel>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text('Chọn độ khó cho "${vocabulary.word}"'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, WordLevel.easy),
+            child: const Row(
+              children: [
+                Icon(Icons.sentiment_satisfied, color: Colors.green),
+                SizedBox(width: 8),
+                Text('Dễ'),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, WordLevel.medium),
+            child: const Row(
+              children: [
+                Icon(Icons.sentiment_neutral, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('Trung bình'),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, WordLevel.hard),
+            child: const Row(
+              children: [
+                Icon(Icons.sentiment_dissatisfied, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Khó'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    if (result != null) {
+      final updatedWord = vocabulary.copyWith(level: result);
+      DataService.updateVocabulary(updatedWord);
+      setState(() {});
+    }
   }
 
   @override
@@ -202,52 +289,7 @@ class _LessonScreenState extends State<LessonScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: widget.topic.color.withAlpha(31),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(widget.topic.icon,
-                      color: widget.topic.color, size: 30),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.topic.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${words.length} từ vựng',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: AppColors.subtitleColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              widget.topic.description,
-              style: const TextStyle(
-                fontSize: 16,
-                color: AppColors.subtitleColor,
-              ),
-            ),
+            _LessonHeader(topic: widget.topic, count: words.length),
             const SizedBox(height: 20),
             if (words.isEmpty)
               Container(
@@ -255,7 +297,7 @@ class _LessonScreenState extends State<LessonScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.black12),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: const Text(
                   'Chủ đề này chưa có từ vựng. Bấm "Thêm từ" để tạo từ mới.',
@@ -269,6 +311,8 @@ class _LessonScreenState extends State<LessonScreen> {
                   onListen: () => _listenWord(word),
                   onEdit: () => _showVocabularyDialog(vocabulary: word),
                   onDelete: () => _confirmDelete(word),
+                  onNote: () => _showNoteDialog(word),
+                  onLevelChange: () => _showLevelDialog(word),
                 ),
               ),
             const SizedBox(height: 8),
@@ -298,6 +342,62 @@ class _LessonScreenState extends State<LessonScreen> {
             const SizedBox(height: 76),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LessonHeader extends StatelessWidget {
+  const _LessonHeader({required this.topic, required this.count});
+
+  final Topic topic;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: topic.color.withAlpha(31),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(topic.icon, color: topic.color, size: 30),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  topic.name,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$count từ vựng - ${topic.description}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: AppColors.subtitleColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
